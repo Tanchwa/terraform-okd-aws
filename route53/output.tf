@@ -1,4 +1,7 @@
-output "public_dns_id" {
-  #value = local.public_endpoints ? data.aws_route53_zone.public[0].id : "nopublic"
-  value = data.aws_route53_zone.public[0].id
+output "cloudflare_zone_id" {
+  value = local.cloudflare_zone_id
+}
+
+output "private_zone_id" {
+  value = aws_route53_zone.int.zone_id
 }

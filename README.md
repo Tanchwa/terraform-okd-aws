@@ -1,6 +1,8 @@
-# Automated OpenShift v4 installation on AWS
+# Automated OKD v4 installation on AWS
 
-This project automates the Red Hat OpenShift Container Platform 4.6 (for previous releases - checkout `pre46` branch) installation on Amazon AWS platform. It focuses on the OpenShift User-provided infrastructure installation (UPI) where implementers provide pre-existing infrastructure including VMs, networking, load balancers, DNS configuration etc.
+This project automates the [OKD](https://okd.io) (the community distribution of Kubernetes that powers Red Hat OpenShift) installation on the Amazon AWS platform. It focuses on the User-provided infrastructure installation (UPI) where implementers provide pre-existing infrastructure including VMs, networking, load balancers, DNS configuration etc.
+
+OKD runs on **SCOS** (CentOS Stream CoreOS) and, unlike licensed OpenShift, does **not** require a Red Hat pull secret. See [Notes on OKD](#notes-on-okd) below for the two constraints that matter most: the pull secret and the SCOS AMI region coverage.
 
 * [Terraform Automation](#terraform-automation)
 * [Infrastructure Architecture](#infrastructure-architecture)
@@ -51,7 +53,7 @@ This project uses mainly Terraform as infrastructure management and installation
 
 7. Prepare the DNS
 
-   OpenShift requires a valid public Route53 hosted zone. (Even if you plan to use an airgapped environment)
+   Public DNS for the cluster is managed in **Cloudflare**. You need a Cloudflare zone for your `base_domain` and an API token with `Zone:Read` and `DNS:Edit` on it (set via `cloudflare_api_token`). The internal `api-int` records are served from an AWS **private** Route53 hosted zone that this project creates and attaches to the cluster VPC — so no public Route53 zone is required. See [DNS (Cloudflare + private Route53)](#dns-cloudflare--private-route53).
 
 8. Prepare AWS Account Access
 
@@ -107,10 +109,11 @@ This project installs the OpenShift 4 in several stages where each stage automat
 	Create a `terraform.tfvars` file with following content:
 
 ```
-cluster_name = "ocp4"
+cluster_name = "okd4"
 base_domain = "example.com"
-openshift_pull_secret = "./openshift_pull_secret.json"
-openshift_version = "4.6.28"
+openshift_pull_secret = "./fake_pull_secret.json"
+openshift_version = "4.22.0-okd-scos.8"
+cloudflare_api_token = "your-cloudflare-api-token"
 
 aws_extra_tags = {
   "owner" = "admin"
@@ -121,14 +124,18 @@ aws_publish_strategy = "External"
 
 |name | required  | description and value        |
 |----------------|------------|--------------|
-| `cluster_name` | yes  | The name of the OpenShift cluster you will install     |
-| `base_domain`  | yes | The domain that has been created in Route53 public hosted zone |
-| `openshift_pull_secret` | no | The value refers to a file name that contain downloaded pull secret from https://cloud.redhat.com/openshift/pull-secret; the default name is `openshift_pull_secret.json` |
-| `openshift_version` | yes | The openshift version to be installed.  |
-| `aws_region`   | yes  | AWS region that the VPC will be created in.  By default, uses `us-east-2`.  Note that for an HA installation, the AWS selected region should have at least 3 availability zones. |
+| `cluster_name` | yes  | The name of the OKD cluster you will install     |
+| `base_domain`  | yes | The domain of the Cloudflare zone that public records are created in |
+| `cloudflare_api_token` | yes | Cloudflare API token with `Zone:Read` + `DNS:Edit` on the `base_domain` zone |
+| `manage_ingress_dns` | no | Set `true` (second apply, after the cluster is up) to create the `*.apps` wildcard in Cloudflare. Default `false`. |
+| `ingress_router_lb_hostname` | no | Explicit ingress LB hostname for `*.apps`; leave empty to auto-discover the NLB by tag (needed if ingress is a Classic ELB). |
+| `openshift_byo_dns` | no | Tells OKD that DNS is externally managed. Must stay `true` (default) with the Cloudflare integration. |
+| `openshift_pull_secret` | no | Path to a pull secret file. OKD does not require a Red Hat entitlement — the bundled `./fake_pull_secret.json` is used by default. |
+| `openshift_version` | yes | The OKD release tag to install, e.g. `4.22.0-okd-scos.8`. Valid tags are listed at https://github.com/okd-project/okd/releases  |
+| `aws_region`   | yes  | AWS region that the VPC will be created in. Note that for an HA installation, the AWS selected region should have at least 3 availability zones. **SCOS bootimage AMIs are only published for `us-east-1` and `us-gov-west-1`; for any other region you must set `aws_ami`.** |
+| `aws_ami` | no | Override the SCOS AMI for all nodes. Required for regions other than `us-east-1`/`us-gov-west-1` — copy a SCOS AMI into your region and set it here. |
 | `aws_extra_tags`  | no  | AWS tag to identify a resource for example owner:myname     |
 | `aws_azs` | no | list of availability zones to deploy VMs - default to the [`a`, `b`, `c`] |
-| `openshift_byo_dns` | no | whether to ignore DNS resources (you still need a public zone defined) |
 | `openshift_ssh_key` | no | whether to use a specific public key  |
 | `openshift_additional_trust_bundle` | no | additional trust bundle for accessing resources - ie proxy or repo | 
 | `aws_publish_strategy` | no | Whether to publish the API endpoint externally - Default: "External" |
@@ -196,15 +203,15 @@ Setting up the mirror repository using AWS ECR:
     {"353456611220.dkr.ecr.us-east-1.amazonaws.com":{"auth":"<base64string>","email":"abc@example.com"}}
     ```
 
-3. Mirror quay.io and other OpenShift source into your repository
+3. Mirror quay.io and other OKD source into your repository
 
     ```
-    export OCP_RELEASE="4.6.28-x86_64"
+    export OCP_RELEASE="4.22.0-okd-scos.8"
     export LOCAL_REGISTRY='1234567812345678.dkr.ecr.us-east-1.amazonaws.com'
-    export LOCAL_REPOSITORY='ocp46'
-    export PRODUCT_REPO='openshift-release-dev'
-    export LOCAL_SECRET_JSON='/home/ec2-user/openshift_pull_secret.json'
-    export RELEASE_NAME="ocp-release"
+    export LOCAL_REPOSITORY='okd'
+    export PRODUCT_REPO='okd'
+    export LOCAL_SECRET_JSON='/home/ec2-user/fake_pull_secret.json'
+    export RELEASE_NAME="scos-release"
 
     oc adm -a ${LOCAL_SECRET_JSON} release mirror --max-per-registry=1 \
        --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE} \
@@ -217,13 +224,11 @@ Setting up the mirror repository using AWS ECR:
 Once the mirror registry is created - use the terraform.tfvars similar to below:
 
 ```
-cluster_name = "ocp4"
+cluster_name = "okd4"
 base_domain = "example.com"
-openshift_pull_secret = "./openshift_pull_secret.json"
-openshift_installer_url = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.6.28"
+openshift_pull_secret = "./fake_pull_secret.json"
+openshift_version = "4.22.0-okd-scos.8"
 
-aws_access_key_id = "AAAA"
-aws_secret_access_key = "AbcDefGhiJkl"
 aws_ami = "ami-06f85a7940faa3217"
 aws_extra_tags = {
   "owner" = "admin"
@@ -253,6 +258,61 @@ The following items are not deleted (and may stop destroy from being successful)
 - EBS volumes from the gp2 storage classes
 - Public zone DNS updates
 - Custom compute nodes that are not the initial worker nodes
+
+## DNS (Cloudflare + private Route53)
+
+Public DNS is managed in **Cloudflare**; internal split-horizon DNS stays in an AWS **private** Route53 hosted zone. The cluster is installed as BYO DNS (`openshift_byo_dns = true`, the default) so the in-cluster ingress/DNS operators do not try to manage records themselves.
+
+What Terraform creates:
+
+| Record | Location | Target |
+|--------|----------|--------|
+| `api.<cluster>.<domain>` | Cloudflare (public) | external API NLB (when `aws_publish_strategy = "External"`) |
+| `api-int.<cluster>.<domain>` | Route53 private zone (in-VPC) | internal API NLB |
+| `api.<cluster>.<domain>` | Route53 private zone (in-VPC) | internal API NLB (split-horizon) |
+| `*.apps.<cluster>.<domain>` | Cloudflare (public) | ingress LB — only when `manage_ingress_dns = true` |
+
+Provider configuration is a single token:
+
+```hcl
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+```
+
+The zone is resolved by lookup rather than hardcoded:
+
+```hcl
+data "cloudflare_zones" "this" { name = var.base_domain }
+# local.cloudflare_zone_id = data.cloudflare_zones.this.result[0].id
+```
+
+### The `*.apps` wildcard (two-phase apply)
+
+The ingress load balancer does not exist until the cluster is up, so create `*.apps` on a **second apply**:
+
+1. First `terraform apply` with `manage_ingress_dns = false` — brings up the cluster (creates `api` / `api-int`).
+2. Once the cluster is running and the router LB exists, set `manage_ingress_dns = true` and `terraform apply` again. The module discovers the `router-default` NLB by tag and points `*.apps` at it.
+
+If your default ingress uses a **Classic ELB** (older behavior; `data.aws_lb` only finds NLBs), pass the LB hostname explicitly instead:
+
+```bash
+oc -n openshift-ingress get svc router-default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+```
+
+```hcl
+manage_ingress_dns         = true
+ingress_router_lb_hostname = "<that-hostname>"
+```
+
+## Notes on OKD
+
+This project deploys **OKD**, the community distribution, rather than licensed Red Hat OpenShift. A few differences to be aware of:
+
+- **Installer/client source**: the `openshift-install` and `oc` binaries are downloaded from the OKD GitHub releases (`https://github.com/okd-project/okd/releases`) rather than the Red Hat mirror. Set `openshift_version` to a release tag such as `4.22.0-okd-scos.8`.
+- **Pull secret**: OKD does not require a Red Hat entitlement. The bundled `fake_pull_secret.json` (`{"auths":{"fake":{"auth":"..."}}}`) is used by default. You can still point `openshift_pull_secret` at a real Red Hat pull secret if you need to pull entitled content.
+- **Node OS / AMI**: OKD nodes run SCOS (CentOS Stream CoreOS). The SCOS AMI is resolved automatically from the installer stream metadata, **but prebuilt SCOS AMIs are only published for `us-east-1` and `us-gov-west-1`**. To deploy in any other region, copy a SCOS AMI into that region (e.g. `aws ec2 copy-image`) and set `aws_ami` to the resulting AMI ID.
+- **Network type**: OKD 4.19+ only supports `OVNKubernetes` (the legacy `OpenShiftSDN` plugin has been removed).
 
 ## Advanced topics
 

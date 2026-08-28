@@ -1,10 +1,21 @@
-cluster_name = "ocp4"
+cluster_name = "okd4"
 base_domain = "example.com"
-openshift_pull_secret = "./openshift_pull_secret.json"
-openshift_version = "4.6.28"
+# OKD does not require a Red Hat pull secret; the bundled fake secret works.
+openshift_pull_secret = "./fake_pull_secret.json"
+# OKD release tag - see https://github.com/okd-project/okd/releases
+openshift_version = "4.22.0-okd-scos.8"
+
+# Public DNS is managed in Cloudflare. Token needs Zone:Read + DNS:Edit on the
+# zone for base_domain. The private (in-VPC) api-int records stay in Route53.
+cloudflare_api_token = "your-cloudflare-api-token"
+# Set true and re-apply once the cluster is up to create *.apps in Cloudflare.
+manage_ingress_dns = false
 
 aws_extra_tags = {
   "owner" = "admin"
   }
+# SCOS bootimage AMIs are only published for us-east-1 and us-gov-west-1.
+# For any other region, copy a SCOS AMI into it and set aws_ami below.
 aws_region = "us-east-1"
+# aws_ami = "ami-xxxxxxxxxxxxxxxxx"
 aws_publish_strategy = "External"

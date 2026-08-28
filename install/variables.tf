@@ -99,13 +99,18 @@ EOF
 
 variable "openshift_pull_secret" {
   type        = string
-  default     = "./openshift_pull_secret.json"
+  default     = "./fake_pull_secret.json"
+}
+
+variable "openshift_version" {
+  type        = string
+  description = "The OKD release tag, e.g. 4.22.0-okd-scos.8. Used to build the release asset filenames."
 }
 
 variable "openshift_installer_url" {
   type        = string
-  description = "The URL to download OpenShift installer."
-  default     = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest"
+  description = "Base URL of the OKD release assets (GitHub release download URL)."
+  default     = "https://github.com/okd-project/okd/releases/download/latest"
 }
 
 # variable "aws_access_key_id" {

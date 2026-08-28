@@ -31,10 +31,16 @@ variable "aws_infra_instance_type" {
   default     = "m5.xlarge"
 }
 
-# variable "aws_ami" {
-#   type        = string
-#   description = "AMI for all nodes.  An encrypted copy of this AMI will be used.  Example: `ami-foobar123`."
-# }
+variable "aws_ami" {
+  type        = string
+  default     = ""
+  description = <<EOF
+(optional) Override the SCOS AMI used for all nodes. Leave empty to auto-resolve
+the SCOS bootimage from the OKD installer stream metadata. Prebuilt SCOS AMIs are
+only published for us-east-1 and us-gov-west-1, so for any other region you MUST
+copy a SCOS AMI into that region and set this variable. Example: `ami-foobar123`.
+EOF
+}
 
 variable "aws_extra_tags" {
   type = map(string)

@@ -24,12 +24,7 @@ variable "tags" {
 }
 
 variable "api_external_lb_dns_name" {
-  description = "External API's LB DNS name"
-  type        = string
-}
-
-variable "api_external_lb_zone_id" {
-  description = "External API's LB Zone ID"
+  description = "External API's LB DNS name (used as the Cloudflare CNAME target for api.<cluster_domain>)"
   type        = string
 }
 
@@ -57,4 +52,16 @@ EOF
 variable "region" {
   type = string
   description = "The target AWS region for the cluster."
+}
+
+variable "manage_ingress_dns" {
+  type        = bool
+  default     = false
+  description = "Create the *.apps wildcard record in Cloudflare (second-phase apply, once the ingress load balancer exists)."
+}
+
+variable "ingress_router_lb_hostname" {
+  type        = string
+  default     = ""
+  description = "Optional explicit ingress (router-default) LB hostname for the *.apps record. Empty = auto-discover the NLB by tag."
 }

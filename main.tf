@@ -5,7 +5,13 @@ locals {
     },
     var.aws_extra_tags,
   )
-  openshift_installer_url = "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${var.openshift_version}"
+  # OKD ships its installer/client as GitHub release assets. This is the base
+  # URL for the release matching var.openshift_version (e.g. 4.22.0-okd-scos.8).
+  openshift_installer_url = "https://github.com/okd-project/okd/releases/download/${var.openshift_version}"
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }
 
 provider "aws" {
@@ -78,21 +84,20 @@ module "iam" {
 
 
 module "dns" {
-  count                    = var.openshift_byo_dns ? 0 : 1
-
   source = "./route53"
 
-  api_external_lb_dns_name = module.vpc.aws_lb_api_external_dns_name
-  api_external_lb_zone_id  = module.vpc.aws_lb_api_external_zone_id
-  api_internal_lb_dns_name = module.vpc.aws_lb_api_internal_dns_name
-  api_internal_lb_zone_id  = module.vpc.aws_lb_api_internal_zone_id
-  base_domain              = var.base_domain
-  cluster_domain           = "${var.cluster_name}.${var.base_domain}"
-  cluster_id               = module.installer.infraID
-  tags                     = local.tags
-  vpc_id                   = module.vpc.vpc_id
-  region                   = var.aws_region
-  publish_strategy         = var.aws_publish_strategy
+  api_external_lb_dns_name    = module.vpc.aws_lb_api_external_dns_name
+  api_internal_lb_dns_name    = module.vpc.aws_lb_api_internal_dns_name
+  api_internal_lb_zone_id     = module.vpc.aws_lb_api_internal_zone_id
+  base_domain                 = var.base_domain
+  cluster_domain              = "${var.cluster_name}.${var.base_domain}"
+  cluster_id                  = module.installer.infraID
+  tags                        = local.tags
+  vpc_id                      = module.vpc.vpc_id
+  region                      = var.aws_region
+  publish_strategy            = var.aws_publish_strategy
+  manage_ingress_dns          = var.manage_ingress_dns
+  ingress_router_lb_hostname  = var.ingress_router_lb_hostname
 }
 
 module "vpc" {
@@ -125,6 +130,7 @@ module "installer" {
   infra_count = var.infra_count
   openshift_pull_secret = var.openshift_pull_secret
   openshift_installer_url = local.openshift_installer_url
+  openshift_version = var.openshift_version
   aws_worker_root_volume_iops = var.aws_worker_root_volume_iops
   aws_worker_root_volume_size = var.aws_worker_root_volume_size
   aws_worker_root_volume_type = var.aws_worker_root_volume_type

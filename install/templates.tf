@@ -55,7 +55,7 @@ networking:
   - cidr: ${var.cluster_network_cidr}
     hostPrefix: ${var.cluster_network_host_prefix}
   machineCIDR:  ${var.vpc_cidr_block}
-  networkType: OpenShiftSDN
+  networkType: OVNKubernetes
   serviceNetwork:
   - ${var.service_network_cidr}
 platform:
@@ -66,10 +66,10 @@ sshKey: '${local.public_ssh_key}'
 %{if var.airgapped["enabled"]}imageContentSources:
 - mirrors:
   - ${var.airgapped["repository"]}
-  source: quay.io/openshift-release-dev/ocp-release
+  source: quay.io/okd/scos-release
 - mirrors:
   - ${var.airgapped["repository"]}
-  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev%{endif}
+  source: quay.io/okd/scos-content%{endif}
 %{if var.proxy_config["enabled"]}proxy:
   httpProxy: ${var.proxy_config["httpProxy"]}
   httpsProxy: ${var.proxy_config["httpsProxy"]}
@@ -214,10 +214,10 @@ spec:
   repositoryDigestMirrors:
   - mirrors:
     - ${var.airgapped["repository"]}
-    source: quay.io/openshift-release-dev/ocp-release
+    source: quay.io/okd/scos-release
   - mirrors:
     - ${var.airgapped["repository"]}
-    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+    source: quay.io/okd/scos-content
 EOF
 }
 
