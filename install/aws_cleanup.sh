@@ -37,9 +37,13 @@ fi
 vpcid=$(aws ec2 describe-vpcs --filters Name="tag:kubernetes.io/cluster/${clusterId}",Values="owned" --query 'Vpcs[].VpcId' --output text)
 elbname=$(aws elb describe-load-balancers --query  'LoadBalancerDescriptions[].[LoadBalancerName,VPCId]' --output text | grep $vpcid | cut -d$'\t' -f1)
 echo "2 - Deleting apps load balancers - $elbname - "
-if [ ! -z "$elbname" ]; then 
-  aws elb delete-load-balancer --load-balancer-name ${elbname}
-fi
+# $elbname may list multiple Classic ELBs (ingress plus any LoadBalancer
+# Services created in-cluster); delete each on its own since
+# delete-load-balancer accepts only a single --load-balancer-name.
+for lb in $elbname; do
+  echo "  deleting elb $lb"
+  aws elb delete-load-balancer --load-balancer-name "$lb"
+done
 sleep 30
 
 sg=$(aws ec2 describe-security-groups --filters Name="tag:kubernetes.io/cluster/${clusterId}",Values="owned" --query 'SecurityGroups[].[GroupId,GroupName]' --output text | grep "k8s-elb" | cut -d$'\t' -f1)
