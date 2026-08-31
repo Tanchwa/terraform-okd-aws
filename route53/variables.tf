@@ -8,6 +8,11 @@ variable "base_domain" {
   type        = string
 }
 
+variable "public_zone_id" {
+  description = "The public Route53 hosted zone id (for base_domain) that api/apps records are created in."
+  type        = string
+}
+
 variable "vpc_id" {
   description = "The VPC used to create the private route53 zone."
 }
@@ -24,7 +29,7 @@ variable "tags" {
 }
 
 variable "api_external_lb_dns_name" {
-  description = "External API's LB DNS name (used as the Cloudflare CNAME target for api.<cluster_domain>)"
+  description = "External API's LB DNS name (used as the CNAME target for api.<cluster_domain> in the public Route53 zone)"
   type        = string
 }
 
@@ -57,7 +62,7 @@ variable "region" {
 variable "manage_ingress_dns" {
   type        = bool
   default     = false
-  description = "Create the *.apps wildcard record in Cloudflare (second-phase apply, once the ingress load balancer exists)."
+  description = "Create the *.apps wildcard record in the public Route53 zone (second-phase apply, once the ingress load balancer exists)."
 }
 
 variable "ingress_router_lb_hostname" {

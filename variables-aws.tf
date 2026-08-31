@@ -10,7 +10,7 @@ EOF
 variable "aws_bootstrap_instance_type" {
   type        = string
   description = "Instance type for the bootstrap node. Default: `i3.xlarge`."
-  default = "i3.xlarge"
+  default     = "i3.xlarge"
 }
 
 variable "aws_master_instance_type" {
@@ -55,15 +55,15 @@ EOF
 }
 
 variable "aws_master_root_volume_type" {
-  type = string
+  type        = string
   description = "The type of volume for the root block device of master nodes."
-  default = "gp2"
+  default     = "gp2"
 }
 
 variable "aws_master_root_volume_size" {
-  type = string
+  type        = string
   description = "The size of the volume in gigabytes for the root block device of master nodes."
-  default = 200
+  default     = 200
 }
 
 variable "aws_master_root_volume_iops" {
@@ -73,20 +73,20 @@ variable "aws_master_root_volume_iops" {
 The amount of provisioned IOPS for the root block device of master nodes.
 Ignored if the volume type is not io1.
 EOF
-  default = 0
+  default     = 0
 
 }
 
 variable "aws_worker_root_volume_type" {
   type        = string
   description = "The type of volume for the root block device of worker nodes."
-  default = "gp2"
+  default     = "gp2"
 }
 
 variable "aws_worker_root_volume_size" {
   type        = string
   description = "The size of the volume in gigabytes for the root block device of worker nodes."
-  default = 200
+  default     = 200
 }
 
 variable "aws_worker_root_volume_iops" {
@@ -96,7 +96,7 @@ variable "aws_worker_root_volume_iops" {
 The amount of provisioned IOPS for the root block device of worker nodes.
 Ignored if the volume type is not io1.
 EOF
-  default = 0
+  default     = 0
 
 }
 
@@ -108,13 +108,13 @@ variable "infra_count" {
 variable "aws_infra_root_volume_type" {
   type        = string
   description = "The type of volume for the root block device of infra nodes."
-  default = "gp2"
+  default     = "gp2"
 }
 
 variable "aws_infra_root_volume_size" {
   type        = string
   description = "The size of the volume in gigabytes for the root block device of infra nodes."
-  default = 200
+  default     = 200
 }
 
 variable "aws_infra_root_volume_iops" {
@@ -124,13 +124,13 @@ variable "aws_infra_root_volume_iops" {
 The amount of provisioned IOPS for the root block device of infra nodes.
 Ignored if the volume type is not io1.
 EOF
-  default = 0
+  default     = 0
 
 }
 
 variable "aws_master_root_volume_encrypted" {
-  type = bool
-  default = true
+  type        = bool
+  default     = true
   description = <<EOF
 Indicates whether the root EBS volume for master is encrypted. Encrypted Amazon EBS volumes
 may only be attached to machines that support Amazon EBS encryption.
@@ -155,9 +155,9 @@ variable "aws_region" {
 }
 
 variable "aws_azs" {
- type = list(string)
- description = "The availability zones in which to create the nodes."
- default = null
+  type        = list(string)
+  description = "The availability zones in which to create the nodes."
+  default     = null
 }
 
 variable "aws_vpc" {
@@ -181,7 +181,7 @@ variable "aws_private_subnets" {
 variable "aws_publish_strategy" {
   type        = string
   description = "The cluster publishing strategy, either Internal or External"
-  default = "External"
+  default     = "External"
 }
 
 variable "aws_skip_region_validation" {
@@ -199,3 +199,9 @@ variable "aws_skip_region_validation" {
 #   type        = string
 #   description = "AWS Secret"
 # }
+#
+variable "tailscale_auth_key" {
+  description = "Authentication Key for tailscale gateway connection"
+  type        = string
+  sensitive   = true
+}

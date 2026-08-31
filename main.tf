@@ -90,6 +90,7 @@ module "dns" {
   api_internal_lb_dns_name    = module.vpc.aws_lb_api_internal_dns_name
   api_internal_lb_zone_id     = module.vpc.aws_lb_api_internal_zone_id
   base_domain                 = var.base_domain
+  public_zone_id              = aws_route53_zone.public.zone_id
   cluster_domain              = "${var.cluster_name}.${var.base_domain}"
   cluster_id                  = module.installer.infraID
   tags                        = local.tags
@@ -146,4 +147,8 @@ module "installer" {
   openshift_ssh_key  = var.openshift_ssh_key 
   openshift_additional_trust_bundle = var.openshift_additional_trust_bundle
   byo_dns = var.openshift_byo_dns
+
+  # The public Route53 zone must exist before `create manifests`, whose DNS
+  # Config asset looks up the public hosted zone for the base domain.
+  depends_on = [aws_route53_zone.public]
 }

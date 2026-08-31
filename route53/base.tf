@@ -3,10 +3,6 @@ terraform {
     aws = {
       source = "hashicorp/aws"
     }
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 5.0"
-    }
   }
 }
 
@@ -29,27 +25,22 @@ locals {
   apps_hostname = var.ingress_router_lb_hostname != "" ? var.ingress_router_lb_hostname : (local.apps_lookup ? data.aws_lb.ingress[0].dns_name : "")
 }
 
-# ─── Public DNS in Cloudflare ─────────────────────────────────────────────────
-# Resolve the zone id from the base domain.
-data "cloudflare_zones" "this" {
-  name = var.base_domain
-}
+# ─── Public DNS in the delegated Route53 zone ─────────────────────────────────
+# var.public_zone_id is the public hosted zone for var.base_domain, created at
+# the root and delegated from Cloudflare via NS records. CNAMEs (not aliases)
+# keep this simple and provider-agnostic and mirror the previous behaviour; the
+# targets are LB DNS names, and cluster_domain is a subdomain (never the apex),
+# so CNAMEs are valid here.
 
-locals {
-  cloudflare_zone_id = data.cloudflare_zones.this.result[0].id
-}
-
-# api.<cluster_domain> -> external API NLB. DNS-only (unproxied): the API serves
-# TLS on 6443 and cannot be proxied through Cloudflare's HTTP proxy.
-resource "cloudflare_dns_record" "api_external" {
+# api.<cluster_domain> -> external API NLB.
+resource "aws_route53_record" "api_external" {
   count = local.public_endpoints ? 1 : 0
 
-  zone_id = local.cloudflare_zone_id
+  zone_id = var.public_zone_id
   name    = "api.${var.cluster_domain}"
   type    = "CNAME"
-  content = var.api_external_lb_dns_name
   ttl     = 300
-  proxied = false
+  records = [var.api_external_lb_dns_name]
 }
 
 # Discover the ingress router-default load balancer by the tags the cloud
@@ -67,15 +58,14 @@ data "aws_lb" "ingress" {
 
 # *.apps.<cluster_domain> -> ingress LB. Wildcard so every app route
 # (<app>.apps.<cluster_domain>) resolves to ingress and the router sorts by Host.
-resource "cloudflare_dns_record" "apps" {
+resource "aws_route53_record" "apps" {
   count = local.apps_enabled ? 1 : 0
 
-  zone_id = local.cloudflare_zone_id
+  zone_id = var.public_zone_id
   name    = "*.apps.${var.cluster_domain}"
   type    = "CNAME"
-  content = local.apps_hostname
   ttl     = 300
-  proxied = false
+  records = [local.apps_hostname]
 }
 
 # ─── Private (split-horizon) DNS in AWS Route53 ───────────────────────────────

@@ -1,5 +1,5 @@
-output "cloudflare_zone_id" {
-  value = local.cloudflare_zone_id
+output "public_zone_id" {
+  value = var.public_zone_id
 }
 
 output "private_zone_id" {

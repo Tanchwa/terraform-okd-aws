@@ -110,9 +110,21 @@ variable "openshift_byo_dns" {
 }
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token used by the cloudflare provider to manage public DNS records in the base_domain zone. Needs Zone:Read and DNS:Edit on the zone."
+  description = "Cloudflare API token used by the cloudflare provider to manage the NS delegation records in the parent zone. Needs Zone:Read and DNS:Edit on the parent zone."
   type        = string
   sensitive   = true
+}
+
+variable "cloudflare_parent_domain" {
+  description = <<EOF
+The Cloudflare-managed parent zone that base_domain is a subdomain of (e.g.
+`andrewsutliff.com` when base_domain is `okd.andrewsutliff.com`). Terraform
+creates a public Route53 zone for base_domain and publishes NS records into this
+Cloudflare zone to delegate it. Leave empty to skip automatic delegation and add
+the NS records yourself.
+EOF
+  type        = string
+  default     = ""
 }
 
 variable "manage_ingress_dns" {
