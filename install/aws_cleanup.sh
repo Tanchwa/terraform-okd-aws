@@ -44,10 +44,18 @@ sleep 30
 
 sg=$(aws ec2 describe-security-groups --filters Name="tag:kubernetes.io/cluster/${clusterId}",Values="owned" --query 'SecurityGroups[].[GroupId,GroupName]' --output text | grep "k8s-elb" | cut -d$'\t' -f1)
 
-echo "3 - Deleting elb security group - $sg -"
-while [ ! -z "$sg" ]; do
-  aws ec2 delete-security-group --group-id ${sg}
+echo "3 - Deleting elb security group(s) - $sg -"
+attempts=0
+while [ ! -z "$sg" ] && [ $attempts -lt 30 ]; do
+  # $sg may contain multiple group ids (one per ELB); delete each on its own,
+  # since `delete-security-group` accepts only a single --group-id. Ignore
+  # transient dependency errors and retry until they clear (or we hit the cap).
+  for g in $sg; do
+    echo "  deleting $g"
+    aws ec2 delete-security-group --group-id "$g" 2>/dev/null || true
+  done
   sleep 10
+  attempts=$((attempts + 1))
   sg=$(aws ec2 describe-security-groups --filters Name="tag:kubernetes.io/cluster/${clusterId}",Values="owned" --query 'SecurityGroups[].[GroupId,GroupName]' --output text | grep "k8s-elb" | cut -d$'\t' -f1)
 done
 
