@@ -36,8 +36,12 @@ data "cloudflare_zones" "parent" {
 # as NS records in the Cloudflare parent zone. Recreated automatically if the
 # Route53 zone is destroyed/recreated (nameservers change on recreate). Low TTL
 # keeps re-delegation fast across cluster rebuilds.
+#
+# count is a fixed 4 (not length(name_servers)): a Route53 public hosted zone
+# always gets exactly 4 delegation-set nameservers, and count must be known at
+# plan time — name_servers isn't known until the zone is created.
 resource "cloudflare_dns_record" "delegation" {
-  count = var.cloudflare_parent_domain == "" ? 0 : length(aws_route53_zone.public.name_servers)
+  count = var.cloudflare_parent_domain == "" ? 0 : 4
 
   zone_id = data.cloudflare_zones.parent[0].result[0].id
   name    = var.base_domain
